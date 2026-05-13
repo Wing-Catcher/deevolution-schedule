@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jadwal>
+  <info>
+    <kelas>XI D</kelas>
+    <sekolah>SMAN 2 Trenggalek</sekolah>
+    <periode>Per Januari</periode>
+  </info>
+
+  <hari nama="Senin" seragam="Abu-Putih">
+    <slot type="lesson" jam="1" mulai="07:00" selesai="07:40" mapel="Upacara Bendera" guru="" warna="s-upacara"/>
+    <slot type="lesson" jam="2" mulai="07:40" selesai="08:20" mapel="PJOK (Kesehatan)" guru="Wahyu Kholida M., S.Pd" warna="s-pjok"/>
+    <slot type="lesson" jam="3-4" mulai="08:20" selesai="09:40" mapel="PKWU" guru="Mayasari Oktafa R., S.Pd." warna="s-pkwu"/>
+    <slot type="break" mulai="09:40" selesai="09:50" label="Istirahat I"/>
+    <slot type="lesson" jam="5" mulai="09:50" selesai="10:30" mapel="Pend. Agama Islam" guru="Abdul Aziz Al Barqy, S.Pd.I." warna="s-agama"/>
+    <slot type="lesson" jam="6-7" mulai="10:30" selesai="11:50" mapel="Biologi" guru="Budiyono, S.Pd., M.Pd." warna="s-biologi"/>
+    <slot type="break" mulai="11:50" selesai="13:10" label="Istirahat II + MBG"/>
+    <slot type="lesson" jam="8" mulai="13:10" selesai="13:50" mapel="Biologi" guru="Budiyono, S.Pd., M.Pd." warna="s-biologi"/>
+    <slot type="lesson" jam="9-10" mulai="13:50" selesai="15:10" mapel="Matematika Wajib" guru="Rully Sulistyani, S.Pd., M.Pd." warna="s-mat-wajib"/>
+  </hari>
+
+  <hari nama="Selasa" seragam="Abu-Putih">
+    <slot type="lesson" jam="1-3" mulai="07:00" selesai="09:00" mapel="Matematika TL" guru="Siti Ambari, S.Pd." warna="s-mat-tl"/>
+    <slot type="lesson" jam="4" mulai="09:00" selesai="09:40" mapel="Bimbingan Konseling" guru="Erik Reffia Rini, S.Pd" warna="s-bk"/>
+    <slot type="break" mulai="09:40" selesai="09:50" label="Istirahat I"/>
+    <slot type="lesson" jam="5-6" mulai="09:50" selesai="11:10" mapel="Pend. Pancasila" guru="Vika Apriliani, S.Pd." warna="s-pancasila"/>
+    <slot type="lesson" jam="7" mulai="11:10" selesai="11:50" mapel="Bahasa Inggris" guru="Aris Stiawan, S.Pd." warna="s-inggris"/>
+    <slot type="break" mulai="11:50" selesai="13:10" label="Istirahat II + MBG"/>
+    <slot type="lesson" jam="8" mulai="13:10" selesai="13:50" mapel="Bahasa Inggris" guru="Aris Stiawan, S.Pd." warna="s-inggris"/>
+    <slot type="lesson" jam="9-10" mulai="13:50" selesai="15:10" mapel="Bahasa Jawa" guru="Ika Sulistiani, S.Pd." warna="s-jawa"/>
+  </hari>
+
+  <hari nama="Rabu" seragam="Seragam Khas">
+    <slot type="lesson" jam="1-2" mulai="07:00" selesai="08:20" mapel="Matematika TL" guru="Siti Ambari, S.Pd." warna="s-mat-tl"/>
+    <slot type="lesson" jam="3-4" mulai="08:20" selesai="09:40" mapel="Biologi" guru="Budiyono, S.Pd., M.Pd." warna="s-biologi"/>
+    <slot type="break" mulai="09:40" selesai="09:50" label="Istirahat I"/>
+    <slot type="lesson" jam="5-6" mulai="09:50" selesai="11:10" mapel="Seni Tari" guru="Fresti Rusrianur I., S.Pd." warna="s-seni"/>
+    <slot type="lesson" jam="7" mulai="11:10" selesai="11:50" mapel="Pend. Agama Islam" guru="Abdul Aziz Al Barqy, S.Pd.I." warna="s-agama"/>
+    <slot type="break" mulai="11:50" selesai="13:10" label="Istirahat II + MBG"/>
+    <slot type="lesson" jam="8" mulai="13:10" selesai="13:50" mapel="Pend. Agama Islam" guru="Abdul Aziz Al Barqy, S.Pd.I." warna="s-agama"/>
+    <slot type="lesson" jam="9-10" mulai="13:50" selesai="15:10" mapel="Bahasa Indonesia" guru="Pingkan Hendrayana, M.Pd." warna="s-indonesia"/>
+  </hari>
+
+  <hari nama="Kamis" seragam="Olahraga + Seragam Khas">
+    <slot type="lesson" jam="1-2" mulai="07:00" selesai="08:20" mapel="PJOK (Olahraga)" guru="Wahyu Kholida M., S.Pd." warna="s-pjok"/>
+    <slot type="lesson" jam="3-4" mulai="08:20" selesai="09:40" mapel="Matematika Wajib" guru="Rully Sulistyani, S.Pd., M.Pd." warna="s-mat-wajib"/>
+    <slot type="break" mulai="09:40" selesai="09:50" label="Istirahat I"/>
+    <slot type="lesson" jam="5-6" mulai="09:50" selesai="11:10" mapel="Kimia" guru="Mimin Setyarini, S.Pd." warna="s-kimia"/>
+    <slot type="lesson" jam="7" mulai="11:10" selesai="11:50" mapel="Sejarah" guru="Luluk Ustadiatu M., S.Pd." warna="s-sejarah"/>
+    <slot type="break" mulai="11:50" selesai="13:10" label="Istirahat II + MBG"/>
+    <slot type="lesson" jam="8" mulai="13:10" selesai="13:50" mapel="Sejarah" guru="Luluk Ustadiatu M., S.Pd." warna="s-sejarah"/>
+    <slot type="lesson" jam="9-10" mulai="13:50" selesai="15:10" mapel="Informatika" guru="Vigor Wahyu S., S.Kom." warna="s-informatika"/>
+  </hari>
+
+  <hari nama="Jumat" seragam="Pramuka">
+    <slot type="lesson" jam="1" mulai="07:00" selesai="07:40" mapel="Bahasa Inggris" guru="Aris Stiawan, S.Pd." warna="s-inggris"/>
+    <slot type="lesson" jam="2-3" mulai="07:40" selesai="09:00" mapel="Bahasa Indonesia" guru="Pingkan Hendrayana, M.Pd." warna="s-indonesia"/>
+    <slot type="lesson" jam="4" mulai="09:00" selesai="09:40" mapel="Kimia" guru="Mimin Setyarini, S.Pd." warna="s-kimia"/>
+    <slot type="break" mulai="09:40" selesai="09:50" label="Istirahat I"/>
+    <slot type="lesson" jam="5-6" mulai="09:50" selesai="11:10" mapel="Kimia" guru="Mimin Setyarini, S.Pd." warna="s-kimia"/>
+    <slot type="break" mulai="11:10" selesai="12:50" label="Istirahat II + MBG"/>
+    <slot type="lesson" jam="7-10" mulai="12:50" selesai="15:10" mapel="Informatika" guru="Vigor Wahyu S., S.Kom." warna="s-informatika"/>
+  </hari>
+</jadwal>
