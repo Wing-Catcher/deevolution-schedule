@@ -494,22 +494,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.open('editor.html', '_blank');
   });
 
-  /* Load from ?data= base64 param (from editor preview) or default */
-  const params = new URLSearchParams(window.location.search);
-  const b64 = params.get('data');
-  if (b64) {
-    showLoading(true);
-    try {
-      const xml = decodeURIComponent(escape(atob(b64)));
-      const data = await loadXML(xml);
-      renderApp(data);
-      showToast('Pratinjau dari editor');
-    } catch(e) {
-      await loadDefaultXML();
-    } finally {
-      showLoading(false);
-    }
-  } else {
-    loadDefaultXML();
-  }
+  /* Load default */
+  loadDefaultXML();
 });
