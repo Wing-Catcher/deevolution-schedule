@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Editor Jadwal</title>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Google+Sans+Display:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<link rel="stylesheet" href="editor.css">
+</head>
+<body>
+
+<!-- Top App Bar -->
+<div class="top-bar">
+  <div class="top-bar-header">
+    <button class="icon-btn" onclick="window.close()" title="Kembali">
+      <span class="material-icons-round">arrow_back</span>
+    </button>
+    <div>
+      <div class="top-bar-title">Editor Jadwal</div>
+      <div class="top-bar-subtitle" id="editorSubtitle">Jadwal baru</div>
+    </div>
+    <div class="top-bar-actions">
+      <button class="icon-btn" id="btnImportXML" title="Import XML">
+        <span class="material-icons-round">upload_file</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="editor-wrap">
+
+  <!-- Info Section -->
+  <div class="editor-card">
+    <div class="editor-card-title">
+      <span class="material-icons-round">info</span>
+      Informasi Kelas
+    </div>
+    <div class="field-row">
+      <div class="field-label">Nama Kelas</div>
+      <input class="field-input" type="text" id="infoKelas" placeholder="XI D" value="XI D">
+    </div>
+    <div class="field-row">
+      <div class="field-label">Nama Sekolah</div>
+      <input class="field-input" type="text" id="infoSekolah" placeholder="SMAN 2 Trenggalek" value="SMAN 2 Trenggalek">
+    </div>
+    <div class="field-row">
+      <div class="field-label">Periode</div>
+      <input class="field-input" type="text" id="infoPeriode" placeholder="Per Januari" value="Per Januari">
+    </div>
+  </div>
+
+  <!-- Day Management -->
+  <div class="editor-card">
+    <div class="editor-card-title">
+      <span class="material-icons-round">calendar_view_week</span>
+      Hari &amp; Jadwal
+    </div>
+
+    <!-- Day tabs -->
+    <div class="editor-day-tabs" id="editorDayTabs"></div>
+    <div style="height:12px;"></div>
+
+    <!-- Active day info -->
+    <div class="field-row">
+      <div class="field-label">Nama Hari</div>
+      <input class="field-input" type="text" id="activeDayName" placeholder="Senin">
+    </div>
+    <div class="field-row">
+      <div class="field-label">Seragam (pisahkan dengan + jika lebih dari satu)</div>
+      <input class="field-input" type="text" id="activeDaySeragam" placeholder="Abu-Putih">
+    </div>
+
+    <div class="divider"></div>
+    <div style="height:8px;"></div>
+
+    <!-- Slot list -->
+    <div class="slot-list" id="slotList"></div>
+
+    <!-- Add buttons -->
+    <div class="add-slot-row" style="margin-top:12px;">
+      <button class="add-btn" id="btnAddLesson">
+        <span class="material-icons-round">add</span> Jam Pelajaran
+      </button>
+      <button class="add-btn" id="btnAddBreak">
+        <span class="material-icons-round">add</span> Istirahat
+      </button>
+    </div>
+
+    <!-- Day management -->
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="add-btn" id="btnAddDay" style="flex:1;">
+        <span class="material-icons-round">add_circle_outline</span> Tambah Hari
+      </button>
+      <button class="add-btn" id="btnDeleteDay" style="flex:1;color:var(--md-error);">
+        <span class="material-icons-round">delete_outline</span> Hapus Hari Ini
+      </button>
+    </div>
+  </div>
+
+  <!-- XML Preview -->
+  <div class="editor-card">
+    <div class="editor-card-title">
+      <span class="material-icons-round">code</span>
+      Preview XML
+    </div>
+    <div class="xml-preview" id="xmlPreview"><!-- XML akan muncul di sini --></div>
+  </div>
+
+</div>
+
+<!-- Action Bar -->
+<div class="editor-action-bar">
+  <button class="action-btn secondary" id="btnPreview">
+    <span class="material-icons-round">visibility</span> Preview
+  </button>
+  <button class="action-btn primary" id="btnDownload">
+    <span class="material-icons-round">download</span> Unduh XML
+  </button>
+</div>
+
+<!-- Hidden inputs -->
+<input type="file" id="importFileInput" accept=".xml" style="display:none">
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script src="editor.js"></script>
+</body>
+</html>
