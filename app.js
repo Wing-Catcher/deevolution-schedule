@@ -9,13 +9,134 @@ let SCHEDULE_DATA = null;   // parsed from XML
 let currentIdx = 0;
 let clockTimer = null;
 
-/* ── DOM references ── */
-const slider     = () => document.getElementById('daysSlider');
-const tabsEl     = () => document.querySelectorAll('.day-tab');
+// Per-day upacara/apel toggle state: key = day index, value = boolean (true = ON)
+const upacaraState = {};
 
-/* ════════════════════════════════════════
-   XML LOADING & PARSING
-   ════════════════════════════════════════ */
+/* ── Upacara detection ── */
+function isUpacaraSlot(slot) {
+  if (slot.type !== 'lesson') return false;
+  const m = (slot.mapel || '').toLowerCase();
+  return m.includes('upacara') || m.includes('apel');
+}
+
+// Returns index of upacara/apel slot in day's slots array, or -1
+function findUpacaraIdx(slots) {
+  return slots.findIndex(isUpacaraSlot);
+}
+
+// Is Senin (first day named 'Senin')?
+function isSenin(dayIdx) {
+  return SCHEDULE_DATA?.hari[dayIdx]?.nama?.toLowerCase() === 'senin';
+}
+
+// Get effective toggle value for a day
+function getUpacaraOn(dayIdx) {
+  if (dayIdx in upacaraState) return upacaraState[dayIdx];
+  // Senin default ON, others default OFF
+  return isSenin(dayIdx);
+}
+
+/**
+ * Compute the effective slots to display for a day.
+ *
+ * SENIN (has Upacara slot in XML, default ON):
+ *   ON  → show all slots as-is
+ *   OFF → remove upacara, shift lesson times in the same segment forward
+ *
+ * OTHER DAYS (no upacara slot, default OFF):
+ *   OFF → show all slots as-is
+ *   ON  → inject an Apel slot at the start (same duration as Senin's upacara = 40 min),
+ *         push lesson times in the first segment back by that duration
+ */
+function computeEffectiveSlots(dayIdx) {
+  const day = SCHEDULE_DATA.hari[dayIdx];
+  if (!day) return [];
+  const slots = day.slots;
+  const upacaraOn  = getUpacaraOn(dayIdx);
+  const upacaraIdx = findUpacaraIdx(slots);
+
+  // ── Case A: day HAS upacara slot (Senin) ──
+  if (upacaraIdx !== -1) {
+    if (upacaraOn) {
+      // ON: return as-is
+      return slots.map(s => ({ ...s }));
+    } else {
+      // OFF: remove upacara, push lessons in first segment forward (earlier)
+      const uSlot = slots[upacaraIdx];
+      const uDur  = timeToMin(uSlot.selesai) - timeToMin(uSlot.mulai);
+      const result = [];
+      let inFirstSegment = true;
+
+      for (let i = 0; i < slots.length; i++) {
+        if (i === upacaraIdx) continue; // skip upacara
+        const slot = { ...slots[i] };
+        if (slot.type === 'break') {
+          inFirstSegment = false;
+          result.push(slot); // break stays fixed
+        } else {
+          if (inFirstSegment) {
+            slot.mulai   = minToTime(timeToMin(slot.mulai)   - uDur);
+            slot.selesai = minToTime(timeToMin(slot.selesai) - uDur);
+          }
+          result.push(slot);
+        }
+      }
+      return result;
+    }
+  }
+
+  // ── Case B: day has NO upacara slot ──
+  if (!upacaraOn) {
+    // OFF: return as-is
+    return slots.map(s => ({ ...s }));
+  } else {
+    // ON: Apel menggantikan JP 1 (slot lesson pertama).
+    // Apel mengambil waktu JP 1. Semua lesson di segmen pertama setelah JP 1
+    // digeser maju sehingga mulai tepat setelah apel selesai.
+    // Total durasi segmen pertama tidak berubah, istirahat tetap.
+
+    const firstLessonIdx = slots.findIndex(s => s.type === 'lesson');
+    if (firstLessonIdx === -1) return slots.map(s => ({ ...s }));
+
+    const jp1 = slots[firstLessonIdx];
+    const jp1Dur = timeToMin(jp1.selesai) - timeToMin(jp1.mulai); // durasi JP 1 asli
+
+    // Apel mengisi tepat durasi JP 1
+    const apelSlot = {
+      type: 'lesson', jam: jp1.jam,
+      mulai: jp1.mulai, selesai: jp1.selesai,
+      mapel: 'Apel Pagi', guru: '', warna: 's-upacara'
+    };
+
+    const result = [apelSlot];
+    let inFirstSegment = true;
+    let currentTime = timeToMin(jp1.selesai); // waktu mulai slot berikutnya setelah apel
+
+    for (let i = 0; i < slots.length; i++) {
+      if (i === firstLessonIdx) continue; // skip JP 1 asli, sudah diganti apel
+      const slot = { ...slots[i] };
+
+      if (slot.type === 'break') {
+        inFirstSegment = false;
+        result.push(slot); // break tetap di waktu aslinya
+      } else {
+        if (inFirstSegment) {
+          // Geser lesson agar berurutan langsung setelah slot sebelumnya
+          const dur = timeToMin(slot.selesai) - timeToMin(slot.mulai);
+          slot.mulai   = minToTime(currentTime);
+          slot.selesai = minToTime(currentTime + dur);
+          currentTime  = timeToMin(slot.selesai);
+        }
+        result.push(slot);
+      }
+    }
+    return result;
+  }
+}
+
+/* ── DOM references ── */
+const slider = () => document.getElementById('daysSlider');
+const tabsEl = () => document.querySelectorAll('.day-tab');
 
 async function loadXML(xmlText) {
   const parser = new DOMParser();
@@ -65,6 +186,9 @@ async function loadXML(xmlText) {
    ════════════════════════════════════════ */
 
 function renderApp(data) {
+  /* Reset toggle state when new data is loaded */
+  Object.keys(upacaraState).forEach(k => delete upacaraState[k]);
+
   /* Header */
   document.getElementById('titleText').textContent = `Jadwal Kelas ${data.kelas}`;
   document.getElementById('subtitleText').textContent = `${data.periode} • ${data.sekolah}`;
@@ -93,9 +217,12 @@ function renderApp(data) {
     section.className = 'day-section';
     section.id = `hari-${i}`;
     section.style.width = `${100 / data.hari.length}%`;
-    section.innerHTML = buildDayHTML(h);
+    section.innerHTML = buildDayHTML(h, i);
     sliderEl.appendChild(section);
   });
+
+  /* Bind toggle events */
+  bindToggleEvents(data);
 
   /* Legend */
   buildLegend(data);
@@ -112,17 +239,53 @@ function renderApp(data) {
   goToToday(data.hari.length);
 }
 
-function buildDayHTML(h) {
-  const lessonSlots = h.slots.filter(s => s.type === 'lesson');
+function bindToggleEvents(data) {
+  data.hari.forEach((h, dayIdx) => {
+    const toggle = document.getElementById(`toggleUpacara-${dayIdx}`);
+    if (!toggle) return;
+    toggle.addEventListener('change', () => {
+      upacaraState[dayIdx] = toggle.checked;
+      refreshDaySection(dayIdx);
+    });
+  });
+}
+
+function refreshDaySection(dayIdx) {
+  const data = SCHEDULE_DATA;
+  if (!data) return;
+  const h = data.hari[dayIdx];
+  const section = document.getElementById(`hari-${dayIdx}`);
+  if (!section) return;
+  section.innerHTML = buildDayHTML(h, dayIdx);
+  // Re-bind this day's toggle
+  const toggle = document.getElementById(`toggleUpacara-${dayIdx}`);
+  if (toggle) {
+    toggle.addEventListener('change', () => {
+      upacaraState[dayIdx] = toggle.checked;
+      refreshDaySection(dayIdx);
+    });
+  }
+}
+
+function buildDayHTML(h, dayIdx) {
+  const effectiveSlots = computeEffectiveSlots(dayIdx);
+  const lessonSlots = effectiveSlots.filter(s => s.type === 'lesson');
   const totalJP = lessonSlots.length;
   const uniqueMapel = new Set(lessonSlots.map(s => s.mapel)).size;
 
-  // Parse duration
-  const first = h.slots[0];
-  const last  = h.slots[h.slots.length - 1];
+  const first = effectiveSlots[0];
+  const last  = effectiveSlots[effectiveSlots.length - 1];
   const dur   = durationLabel(first?.mulai, last?.selesai);
 
   const seragamBadges = buildSeragamBadges(h.seragam);
+
+  // Check if this day has an upacara/apel slot
+  const upacaraIdx = findUpacaraIdx(h.slots);
+  const hasUpacara = upacaraIdx !== -1;
+  const upacaraOn  = getUpacaraOn(dayIdx);
+  const uSlot      = hasUpacara ? h.slots[upacaraIdx] : null;
+  const uLabel     = uSlot ? uSlot.mapel : '';
+  const isDefaultOn = isSenin(dayIdx);
 
   let html = `
     <div class="info-banner" style="gap:12px;">
@@ -131,17 +294,57 @@ function buildDayHTML(h) {
         <div class="info-banner-label">Seragam</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:3px;">${seragamBadges}</div>
       </div>
-    </div>
+    </div>`;
+
+  // Upacara/Apel toggle — shown for all days
+  const toggleChecked = upacaraOn ? 'checked' : '';
+  const toggleRowActive = upacaraOn ? 'active' : '';
+  const toggleSubText = hasUpacara
+    ? (upacaraOn
+        ? `${uLabel} aktif — ${uSlot.mulai}–${uSlot.selesai} WIB`
+        : `${uLabel} dinonaktifkan — jadwal digeser maju`)
+    : (upacaraOn
+        ? 'Apel aktif — jadwal mulai lebih lambat'
+        : 'Tidak ada upacara/apel');
+
+  const disabledAttr = (!hasUpacara && !upacaraOn) ? 'disabled' : '';
+
+  html += `
+    <div class="upacara-toggle-row ${toggleRowActive}" id="toggleRow-${dayIdx}">
+      <span class="material-icons-round upacara-toggle-icon">flag</span>
+      <label class="upacara-toggle-label" for="toggleUpacara-${dayIdx}">
+        Upacara / Apel
+        <span class="upacara-toggle-sub" id="toggleSub-${dayIdx}">${toggleSubText}</span>
+      </label>
+      <label class="md-switch">
+        <input type="checkbox" id="toggleUpacara-${dayIdx}" data-dayidx="${dayIdx}" ${toggleChecked} ${disabledAttr}>
+        <div class="md-switch-track"></div>
+        <div class="md-switch-thumb"></div>
+      </label>
+    </div>`;
+
+  html += `
     <div class="stats-row">
       <div class="stat-card"><div class="stat-number">${uniqueMapel}</div><div class="stat-label">Mapel</div></div>
       <div class="stat-card"><div class="stat-number">${totalJP}</div><div class="stat-label">Jam Pelajaran</div></div>
       <div class="stat-card"><div class="stat-number">${dur}</div><div class="stat-label">Durasi</div></div>
     </div>
-    <div class="timeline">
+    <div class="timeline" id="timeline-${dayIdx}">
   `;
 
-  h.slots.forEach((slot, idx) => {
-    const isLast = idx === h.slots.length - 1;
+  html += buildTimelineHTML(effectiveSlots, h.slots, dayIdx, upacaraOn);
+  html += `</div>`;
+  return html;
+}
+
+function buildTimelineHTML(effectiveSlots, originalSlots, dayIdx, upacaraOn) {
+  let html = '';
+  const upacaraIdx = findUpacaraIdx(originalSlots);
+
+  effectiveSlots.forEach((slot, idx) => {
+    const isLast = idx === effectiveSlots.length - 1;
+    const isUpacaraCard = isUpacaraSlot(slot);
+
     if (slot.type === 'break') {
       const icon = slot.label.includes('II') ? 'restaurant' : 'coffee';
       html += `
@@ -152,9 +355,11 @@ function buildDayHTML(h) {
         </div>`;
     } else {
       const hasTeacher = slot.guru && slot.guru.trim() !== '';
-      const jpNums = slot.jam.toString();
+      const jpNums  = slot.jam.toString();
       const isMulti = jpNums.includes('-');
-      const jpCount = isMulti ? parseInt(jpNums.split('-')[1]) - parseInt(jpNums.split('-')[0]) + 1 : 1;
+      const jpCount = isMulti
+        ? parseInt(jpNums.split('-')[1]) - parseInt(jpNums.split('-')[0]) + 1
+        : 1;
 
       html += `
         <div class="lesson-group">
@@ -177,7 +382,6 @@ function buildDayHTML(h) {
     }
   });
 
-  html += `</div>`;
   return html;
 }
 
@@ -346,16 +550,17 @@ function updateClock(data) {
   }
 
   const nowMin = h * 60 + m + s / 60;
+  const effectiveSlots = computeEffectiveSlots(dayIndex);
   let found = null;
-  for (const slot of dayData.slots) {
+  for (const slot of effectiveSlots) {
     const sMin = timeToMin(slot.mulai);
     const eMin = timeToMin(slot.selesai);
     if (nowMin >= sMin && nowMin < eMin) { found = { slot, sMin, eMin }; break; }
   }
 
   if (!found) {
-    const schoolStart = timeToMin(dayData.slots[0]?.mulai || '07:00');
-    const schoolEnd   = timeToMin(dayData.slots[dayData.slots.length - 1]?.selesai || '15:10');
+    const schoolStart = timeToMin(effectiveSlots[0]?.mulai || '07:00');
+    const schoolEnd   = timeToMin(effectiveSlots[effectiveSlots.length - 1]?.selesai || '15:10');
     if (nowMin < schoolStart) {
       mainEl.textContent = 'Belum mulai';
       subEl.textContent = `Mulai ${Math.ceil(schoolStart - nowMin)} menit lagi`;
@@ -416,16 +621,77 @@ function loadFromFile(file) {
   reader.readAsText(file);
 }
 
+const DEFAULT_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<jadwal>
+  <info>
+    <kelas>XI D</kelas>
+    <sekolah>SMAN 2 Trenggalek</sekolah>
+    <periode>Per Januari</periode>
+  </info>
+
+  <hari nama="Senin" seragam="Abu-Putih">
+    <slot type="lesson" jam="1" mulai="07:00" selesai="07:40" mapel="Upacara Bendera" guru="" warna="s-upacara"/>
+    <slot type="lesson" jam="2" mulai="07:40" selesai="08:20" mapel="PJOK (Kesehatan)" guru="Wahyu Kholida M., S.Pd" warna="s-pjok"/>
+    <slot type="lesson" jam="3-4" mulai="08:20" selesai="09:40" mapel="PKWU" guru="Mayasari Oktafa R., S.Pd." warna="s-pkwu"/>
+    <slot type="break" mulai="09:40" selesai="09:50" label="Istirahat I"/>
+    <slot type="lesson" jam="5" mulai="09:50" selesai="10:30" mapel="Pend. Agama Islam" guru="Abdul Aziz Al Barqy, S.Pd.I." warna="s-agama"/>
+    <slot type="lesson" jam="6-7" mulai="10:30" selesai="11:50" mapel="Biologi" guru="Budiyono, S.Pd., M.Pd." warna="s-biologi"/>
+    <slot type="break" mulai="11:50" selesai="13:10" label="Istirahat II + MBG"/>
+    <slot type="lesson" jam="8" mulai="13:10" selesai="13:50" mapel="Biologi" guru="Budiyono, S.Pd., M.Pd." warna="s-biologi"/>
+    <slot type="lesson" jam="9-10" mulai="13:50" selesai="15:10" mapel="Matematika Wajib" guru="Rully Sulistyani, S.Pd., M.Pd." warna="s-mat-wajib"/>
+  </hari>
+
+  <hari nama="Selasa" seragam="Abu-Putih">
+    <slot type="lesson" jam="1-3" mulai="07:00" selesai="09:00" mapel="Matematika TL" guru="Siti Ambari, S.Pd." warna="s-mat-tl"/>
+    <slot type="lesson" jam="4" mulai="09:00" selesai="09:40" mapel="Bimbingan Konseling" guru="Erik Reffia Rini, S.Pd" warna="s-bk"/>
+    <slot type="break" mulai="09:40" selesai="09:50" label="Istirahat I"/>
+    <slot type="lesson" jam="5-6" mulai="09:50" selesai="11:10" mapel="Pend. Pancasila" guru="Vika Apriliani, S.Pd." warna="s-pancasila"/>
+    <slot type="lesson" jam="7" mulai="11:10" selesai="11:50" mapel="Bahasa Inggris" guru="Aris Stiawan, S.Pd." warna="s-inggris"/>
+    <slot type="break" mulai="11:50" selesai="13:10" label="Istirahat II + MBG"/>
+    <slot type="lesson" jam="8" mulai="13:10" selesai="13:50" mapel="Bahasa Inggris" guru="Aris Stiawan, S.Pd." warna="s-inggris"/>
+    <slot type="lesson" jam="9-10" mulai="13:50" selesai="15:10" mapel="Bahasa Jawa" guru="Ika Sulistiani, S.Pd." warna="s-jawa"/>
+  </hari>
+
+  <hari nama="Rabu" seragam="Seragam Khas">
+    <slot type="lesson" jam="1-2" mulai="07:00" selesai="08:20" mapel="Matematika TL" guru="Siti Ambari, S.Pd." warna="s-mat-tl"/>
+    <slot type="lesson" jam="3-4" mulai="08:20" selesai="09:40" mapel="Biologi" guru="Budiyono, S.Pd., M.Pd." warna="s-biologi"/>
+    <slot type="break" mulai="09:40" selesai="09:50" label="Istirahat I"/>
+    <slot type="lesson" jam="5-6" mulai="09:50" selesai="11:10" mapel="Seni Tari" guru="Fresti Rusrianur I., S.Pd." warna="s-seni"/>
+    <slot type="lesson" jam="7" mulai="11:10" selesai="11:50" mapel="Pend. Agama Islam" guru="Abdul Aziz Al Barqy, S.Pd.I." warna="s-agama"/>
+    <slot type="break" mulai="11:50" selesai="13:10" label="Istirahat II + MBG"/>
+    <slot type="lesson" jam="8" mulai="13:10" selesai="13:50" mapel="Pend. Agama Islam" guru="Abdul Aziz Al Barqy, S.Pd.I." warna="s-agama"/>
+    <slot type="lesson" jam="9-10" mulai="13:50" selesai="15:10" mapel="Bahasa Indonesia" guru="Pingkan Hendrayana, M.Pd." warna="s-indonesia"/>
+  </hari>
+
+  <hari nama="Kamis" seragam="Olahraga + Seragam Khas">
+    <slot type="lesson" jam="1-2" mulai="07:00" selesai="08:20" mapel="PJOK (Olahraga)" guru="Wahyu Kholida M., S.Pd." warna="s-pjok"/>
+    <slot type="lesson" jam="3-4" mulai="08:20" selesai="09:40" mapel="Matematika Wajib" guru="Rully Sulistyani, S.Pd., M.Pd." warna="s-mat-wajib"/>
+    <slot type="break" mulai="09:40" selesai="09:50" label="Istirahat I"/>
+    <slot type="lesson" jam="5-6" mulai="09:50" selesai="11:10" mapel="Kimia" guru="Mimin Setyarini, S.Pd." warna="s-kimia"/>
+    <slot type="lesson" jam="7" mulai="11:10" selesai="11:50" mapel="Sejarah" guru="Luluk Ustadiatu M., S.Pd." warna="s-sejarah"/>
+    <slot type="break" mulai="11:50" selesai="13:10" label="Istirahat II + MBG"/>
+    <slot type="lesson" jam="8" mulai="13:10" selesai="13:50" mapel="Sejarah" guru="Luluk Ustadiatu M., S.Pd." warna="s-sejarah"/>
+    <slot type="lesson" jam="9-10" mulai="13:50" selesai="15:10" mapel="Informatika" guru="Vigor Wahyu S., S.Kom." warna="s-informatika"/>
+  </hari>
+
+  <hari nama="Jumat" seragam="Pramuka">
+    <slot type="lesson" jam="1" mulai="07:00" selesai="07:40" mapel="Bahasa Inggris" guru="Aris Stiawan, S.Pd." warna="s-inggris"/>
+    <slot type="lesson" jam="2-3" mulai="07:40" selesai="09:00" mapel="Bahasa Indonesia" guru="Pingkan Hendrayana, M.Pd." warna="s-indonesia"/>
+    <slot type="lesson" jam="4" mulai="09:00" selesai="09:40" mapel="Kimia" guru="Mimin Setyarini, S.Pd." warna="s-kimia"/>
+    <slot type="break" mulai="09:40" selesai="09:50" label="Istirahat I"/>
+    <slot type="lesson" jam="5-6" mulai="09:50" selesai="11:10" mapel="Kimia" guru="Mimin Setyarini, S.Pd." warna="s-kimia"/>
+    <slot type="break" mulai="11:10" selesai="12:50" label="Istirahat II + MBG"/>
+    <slot type="lesson" jam="7-10" mulai="12:50" selesai="15:10" mapel="Informatika" guru="Vigor Wahyu S., S.Kom." warna="s-informatika"/>
+  </hari>
+</jadwal>`;
+
 async function loadDefaultXML() {
   showLoading(true);
   try {
-    const res = await fetch('jadwal_xi_d.xml');
-    if (!res.ok) throw new Error('File tidak ditemukan');
-    const text = await res.text();
-    const data = await loadXML(text);
+    const data = await loadXML(DEFAULT_XML);
     renderApp(data);
   } catch (e) {
-    showToast('Gagal memuat jadwal default');
+    showToast('Gagal memuat jadwal: ' + e.message);
     console.error(e);
   } finally {
     showLoading(false);
@@ -440,6 +706,12 @@ function timeToMin(timeStr) {
   if (!timeStr) return 0;
   const [h, m] = timeStr.split(':').map(Number);
   return h * 60 + (m || 0);
+}
+
+function minToTime(totalMin) {
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${p2(h)}:${p2(m)}`;
 }
 
 function durationLabel(mulai, selesai) {
@@ -494,6 +766,24 @@ document.addEventListener('DOMContentLoaded', () => {
     window.open('editor.html', '_blank');
   });
 
-  /* Load default */
-  loadDefaultXML();
+  /* Load from ?data= base64 param (from editor preview) or default */
+  const params = new URLSearchParams(window.location.search);
+  const b64 = params.get('data');
+  if (b64) {
+    (async () => {
+      showLoading(true);
+      try {
+        const xml = decodeURIComponent(escape(atob(b64)));
+        const data = await loadXML(xml);
+        renderApp(data);
+        showToast('Pratinjau dari editor');
+      } catch(e) {
+        await loadDefaultXML();
+      } finally {
+        showLoading(false);
+      }
+    })();
+  } else {
+    loadDefaultXML();
+  }
 });

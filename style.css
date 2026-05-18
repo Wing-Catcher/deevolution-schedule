@@ -403,6 +403,89 @@ body {
 .bottom-fab:active { transform: scale(0.96); }
 .bottom-fab .material-icons-round { font-size: 20px; }
 
+/* ── Upacara/Apel Toggle ── */
+.upacara-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--md-surface-variant);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border: 1.5px solid var(--md-outline-variant);
+  transition: background 0.2s, border-color 0.2s;
+}
+.upacara-toggle-row.active {
+  background: var(--md-primary-container);
+  border-color: var(--md-primary);
+}
+.upacara-toggle-icon {
+  font-size: 18px;
+  color: var(--md-on-surface-variant);
+}
+.upacara-toggle-row.active .upacara-toggle-icon {
+  color: var(--md-primary);
+}
+.upacara-toggle-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--md-on-surface-variant);
+}
+.upacara-toggle-row.active .upacara-toggle-label {
+  color: var(--md-on-primary-container);
+}
+.upacara-toggle-sub {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.75;
+  display: block;
+  margin-top: 1px;
+}
+
+/* Material You switch */
+.md-switch {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  flex-shrink: 0;
+}
+.md-switch input {
+  opacity: 0;
+  width: 0; height: 0;
+  position: absolute;
+}
+.md-switch-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  background: var(--md-outline);
+  transition: background 0.25s cubic-bezier(0.2,0,0,1);
+  cursor: pointer;
+}
+.md-switch input:checked + .md-switch-track {
+  background: var(--md-primary);
+}
+.md-switch-thumb {
+  position: absolute;
+  top: 4px; left: 4px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  transition: transform 0.25s cubic-bezier(0.2,0,0,1), width 0.15s, height 0.15s, top 0.15s, left 0.15s;
+  pointer-events: none;
+}
+.md-switch input:checked ~ .md-switch-thumb {
+  transform: translateX(20px);
+}
+
+/* Upacara card when dimmed (toggle off) */
+.lesson-card.upacara-dimmed {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
 /* ── Toast ── */
 .toast {
   position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
