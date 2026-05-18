@@ -58,14 +58,14 @@ function computeEffectiveSlots(dayIdx) {
   // ── Case A: day HAS upacara slot (Senin) ──
   if (upacaraIdx !== -1) {
     if (upacaraOn) {
-      // ON: return as-is
       return slots.map(s => ({ ...s }));
     } else {
-      // OFF: remove upacara, push lessons in first segment forward (earlier)
+      // OFF: remove upacara, chain remaining lessons in first segment
+      // contiguously from the upacara's start time so there are no gaps.
       const uSlot = slots[upacaraIdx];
-      const uDur  = timeToMin(uSlot.selesai) - timeToMin(uSlot.mulai);
       const result = [];
       let inFirstSegment = true;
+      let currentTime = timeToMin(uSlot.mulai); // start chaining from upacara's mulai
 
       for (let i = 0; i < slots.length; i++) {
         if (i === upacaraIdx) continue; // skip upacara
@@ -75,8 +75,10 @@ function computeEffectiveSlots(dayIdx) {
           result.push(slot); // break stays fixed
         } else {
           if (inFirstSegment) {
-            slot.mulai   = minToTime(timeToMin(slot.mulai)   - uDur);
-            slot.selesai = minToTime(timeToMin(slot.selesai) - uDur);
+            const dur = timeToMin(slot.selesai) - timeToMin(slot.mulai);
+            slot.mulai   = minToTime(currentTime);
+            slot.selesai = minToTime(currentTime + dur);
+            currentTime  = timeToMin(slot.selesai);
           }
           result.push(slot);
         }
@@ -304,11 +306,10 @@ function buildDayHTML(h, dayIdx) {
         ? `${uLabel} aktif — ${uSlot.mulai}–${uSlot.selesai} WIB`
         : `${uLabel} dinonaktifkan — jadwal digeser maju`)
     : (upacaraOn
-        ? 'Apel aktif — jadwal mulai lebih lambat'
-        : 'Tidak ada upacara/apel');
+        ? 'Apel aktif — JP 1 digantikan apel pagi'
+        : 'Ketuk untuk aktifkan apel pagi');
 
-  const disabledAttr = (!hasUpacara && !upacaraOn) ? 'disabled' : '';
-
+  // Never disable — all days can toggle
   html += `
     <div class="upacara-toggle-row ${toggleRowActive}" id="toggleRow-${dayIdx}">
       <span class="material-icons-round upacara-toggle-icon">flag</span>
@@ -317,7 +318,7 @@ function buildDayHTML(h, dayIdx) {
         <span class="upacara-toggle-sub" id="toggleSub-${dayIdx}">${toggleSubText}</span>
       </label>
       <label class="md-switch">
-        <input type="checkbox" id="toggleUpacara-${dayIdx}" data-dayidx="${dayIdx}" ${toggleChecked} ${disabledAttr}>
+        <input type="checkbox" id="toggleUpacara-${dayIdx}" data-dayidx="${dayIdx}" ${toggleChecked}>
         <div class="md-switch-track"></div>
         <div class="md-switch-thumb"></div>
       </label>
